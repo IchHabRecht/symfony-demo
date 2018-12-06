@@ -1,24 +1,26 @@
 language: php
-sudo: false
+
+addons:
+  sonarcloud:
+    organization: "ichhabrecht-github"
+    branches:
+      - master
+      - sonar
 
 cache:
   directories:
     - $HOME/.composer/cache/files
     - ./bin/.phpunit
 
+jdk:
+  - oraclejdk8
+
+sudo: required
+
 env:
   global:
     - SYMFONY_PHPUNIT_DIR=./bin/.phpunit
     - SYMFONY_DEPRECATIONS_HELPER=29
-
-matrix:
-  fast_finish: true
-  include:
-    - php: 7.1.18
-    - php: 7.2
-    - php: nightly
-  allow_failures:
-    - php: nightly
 
 before_install:
   - '[[ "$TRAVIS_PHP_VERSION" == "nightly" ]] || phpenv config-rm xdebug.ini'
@@ -42,3 +44,31 @@ script:
   - ./bin/console security:check
   # this checks that Doctrine's mapping configurations are valid
   - ./bin/console doctrine:schema:validate --skip-sync -vvv --no-interaction
+
+jobs:
+  fast_finish: true
+  allow_failures:
+    - php: nightly
+  include:
+    - stage: test
+      php: nightly
+    - stage: test
+      php: 7.2
+    - stage: test
+      php: 7.1.18
+
+    - stage: ✔ with sonarqube scanner
+      if: type = push AND branch IN (master, sonar) AND env(SONAR_TOKEN) IS present AND fork = false
+      php: 7.2
+      before_install: skip
+      install:
+      before_script:
+      script:
+        - git fetch --unshallow || true
+
+        - >
+          echo;
+          echo "Running SonarQube Scanner";
+          echo;
+          echo;
+          sonar-scanner;
